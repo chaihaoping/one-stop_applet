@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.atgpcm.oneStopApplet.dao.BrandDao">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="org.atgpcm.oneStopApplet.domain.entity.Brand">
+        <id column="id" property="id" />
+        <result column="brand_name" property="brandName" />
+        <result column="vendor_name" property="vendorName" />
+        <result column="flag" property="flag" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, brand_name, vendor_name, flag, create_time
+    </sql>
+
+    <select id="selectBrandAndCompeteList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM brand WHERE flag = 0 AND id IN
+        (SELECT compete_id FROM brand_relevance_compete WHERE brand_id = #{brandId})
+    </select>
+
+</mapper>

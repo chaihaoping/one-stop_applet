@@ -1,0 +1,11 @@
+﻿﻿spring:
+  profiles:
+    active: test
+
+server:
+  port: 2501
+  tomcat:
+    uri-encoding: UTF-8
+  servlet:
+    context-path: /oneStopApplet
+

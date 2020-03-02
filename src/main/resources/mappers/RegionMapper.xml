@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.atgpcm.oneStopApplet.dao.RegionDao">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="org.atgpcm.oneStopApplet.domain.entity.Region">
+        <id column="id" property="id" />
+        <result column="region_name" property="regionName" />
+        <result column="brand_id" property="brandId" />
+        <result column="flag" property="flag" />
+        <result column="create_time" property="createTime" />
+        <collection property="provinceList" ofType="org.atgpcm.oneStopApplet.domain.entity.Area">
+            <id column="province_id" property="id"/>
+            <result column="province_name" property="areaName"/>
+        </collection>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, region_name, brand_id, flag, create_time
+    </sql>
+
+    <select id="selectRegionList" resultMap="BaseResultMap">
+        SELECT c.id,c.region_name,d.id AS province_id,d.area_name AS province_name FROM
+        (SELECT a.id,a.region_name,b.area_id
+        FROM region a
+        LEFT JOIN region_relevance_area b ON a.id = b.region_id
+        WHERE a.brand_id = #{brandId}) c
+        LEFT JOIN area d ON c.area_id = d.id
+    </select>
+
+</mapper>

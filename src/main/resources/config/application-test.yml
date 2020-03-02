@@ -1,0 +1,120 @@
+#pagehelper分页插件
+pagehelper:
+  helper-dialect: mysql
+  params: count=countSql
+  reasonable: true
+  support-methods-arguments: true
+
+# mybatis配置
+mybatis-plus:
+  # 打印SQL日志
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    # 刷新mapper 调试神器
+    refresh: true
+    db-config:
+      id-type: auto
+      field-strategy: not_empty
+      table-underline: true
+      db-type: mysql
+  # xml
+  mapper-locations: classpath*:mappers/**/*Mapper.xml
+  # 实体扫描，多个package用逗号或者分号分隔
+  typeAliasesPackage: org.atgpcm.oneStopApplet.domain.entity
+
+# 日志打印sql
+logging:
+  pattern:
+    console: "%d - %msg%n"
+  level:
+    org.atgpcm.onestop_applet: debug
+  config: classpath:log/logback-spring-online.xml
+
+# 分布式调度平台配置
+xxl:
+  job:
+    admin:
+      #调度中心部署跟地址：如调度中心集群部署存在多个地址则用逗号分隔。
+      #执行器将会使用该地址进行"执行器心跳注册"和"任务结果回调"。
+      addresses: http://127.0.0.1:8080/xxl-job-admin
+    #分别配置执行器的名称、ip地址、端口号
+    #注意：如果配置多个执行器时，防止端口冲突
+    accessToken:
+    executor:
+      appname: oneStopApplet
+      ip:
+      port: 8090
+      #执行器运行日志文件存储的磁盘位置，需要对该路径拥有读写权限
+      logpath: /data/applogs/xxl-job/jobhandler
+      #执行器Log文件定期清理功能，指定日志保存天数，日志文件过期自动删除。限制至少保持3天，否则功能不生效；
+      #-1表示永不删除
+      logretentiondays: -1
+
+spring:
+  # 返回json数据date日期格式化
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  application:
+    name: oneStopApplet # 为你的应用起个名字，该名字将注册到eureka注册中心 该名称全部小写
+  # 多数据源配置
+  datasource:
+    # 使用druid数据源
+    type: com.alibaba.druid.pool.DruidDataSource
+    dynamic:
+      druid:
+        # 下面为连接池的补充设置，应用到所有数据源中
+        # 初始化时建立物理连接的个数
+        initialSize: 1
+        # 最小空闲连接
+        minIdle: 1
+        # 连接池中最大连接数
+        maxActive: 20
+        # 配置获取连接等待超时的时间
+        maxWait: 60000
+        # 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒
+        timeBetweenEvictionRunsMillis: 60000
+        # 配置一个连接在池中最小生存的时间，单位是毫秒
+        minEvictableIdleTimeMillis: 30000
+        validationQuery: select 'x'
+        testWhileIdle: true
+        testOnBorrow: false
+        testOnReturn: false
+        # 打开PSCache，并且指定每个连接上PSCache的大小
+        poolPreparedStatements: true
+        maxPoolPreparedStatementPerConnectionSize: 20
+        # 配置监控统计拦截的filters，去掉后监控界面sql无法统计，'wall'用于防火墙
+        filters: stat,wall,slf4j
+        # 通过connectProperties属性来打开mergeSql功能；慢SQL记录
+        connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+        # 合并多个DruidDataSource的监控数据
+        # useGlobalDataSourceStat: true
+      primary: master #设置默认的数据源
+      datasource:
+        master:
+          url: jdbc:mysql://192.168.100.246:3306/one-stop_applet?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true
+          username: pcm
+          password: pcm=pwd@2016
+          driver-class-name: com.mysql.jdbc.Driver
+        slave:
+          url: jdbc:mysql://192.168.100.244:3306/pcmautohome?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true
+          username: pcm
+          password: pcm=pwd@2016
+          driver-class-name: com.mysql.jdbc.Driver
+
+# redis配置
+  redis:
+    host: 192.168.100.246
+    port: 6379
+    password: redis=pwd@2016
+    timeout: 30000
+    database: 6
+    lettuce:
+      pool:
+        max-active: 8 # 连接池最大连接数（使用负值表示没有限制）
+        max-idle: 8 # 连接池中的最大空闲连接
+        max-wait: -1 #连接池最大阻塞等待时间（使用负值表示没有限制)
+        min-idle: 0 # 连接池中的最小空闲连接
+  session:
+    store-type: redis # session 存储方式 支持 redis、mongo、jdbc、hazelcast

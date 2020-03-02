@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.atgpcm.oneStopApplet.dao.CarSeriesDao">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="org.atgpcm.oneStopApplet.domain.entity.CarSeries">
+        <id column="id" property="id" />
+        <result column="series_name" property="seriesName" />
+        <result column="brand_id" property="brandId" />
+        <result column="flag" property="flag" />
+        <result column="create_time" property="createTime" />
+        <collection property="carModelList" ofType="org.atgpcm.oneStopApplet.domain.entity.CarModel">
+            <id column="mid" property="id"/>
+            <result column="name" property="name"/>
+        </collection>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, series_name, brand_id, flag, create_time
+    </sql>
+
+    <select id="selectSeriesAndModelList" resultMap="BaseResultMap">
+        SELECT s.id,s.series_name,m.id AS mid,CONCAT_WS(' ',m.MJ,m.model_name) AS name
+        FROM car_series s
+        LEFT JOIN car_model m ON s.id = m.series_id
+        WHERE s.brand_id = #{brandId}
+    </select>
+
+    <select id="selectSeriesAndCompeteList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM car_series WHERE flag = 0 AND id IN
+        (SELECT compete_id FROM series_relevance_compete WHERE series_id = #{seriesId})
+    </select>
+</mapper>

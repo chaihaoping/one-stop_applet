@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.atgpcm.oneStopApplet.dao.SalesRecordDao">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <id column="id" property="id" />
+        <result column="brand_id" property="brandId" />
+        <result column="series_id" property="seriesId" />
+        <result column="model_id" property="modelId" />
+        <result column="region_id" property="regionId" />
+        <result column="province_id" property="provinceId" />
+        <result column="city_id" property="cityId" />
+        <result column="price" property="price" />
+        <result column="buy_time" property="buyTime" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, brand_id, series_id, model_id, region_id, province_id, city_id, price, buy_time, create_time
+    </sql>
+
+    <select id="selectBrandInfo" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT COUNT(id) AS sales_num,IFNULL(ROUND(AVG(price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = brand_id) AS brand_name
+        FROM sales_record
+        WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10) AND brand_id = #{brandId}
+    </select>
+
+    <select id="selectCompeteInfo" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT a.id AS brand_id,a.brand_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+        FROM brand a
+        LEFT JOIN (SELECT id,price,brand_id FROM sales_record WHERE
+                    DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)) b ON b.brand_id = a.id
+        WHERE a.id IN (SELECT compete_id FROM brand_relevance_compete WHERE brand_id = #{brandId})
+        GROUP BY a.id
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectSalesRecordGroupByProvince" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT COUNT(a.id) AS sales_num,IFNULL(ROUND(AVG(a.price),2),'0.00') AS avg_price,
+                a.province_id,b.area_name AS province_name,a.brand_id
+        FROM (SELECT id,price,province_id,brand_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                AND brand_id IN
+                <foreach collection="brandIdList" item="item" open="(" close=")" separator=",">
+                    #{item}
+                </foreach>
+             ) a
+        LEFT JOIN area b ON b.id = a.province_id
+        GROUP BY a.province_id,a.brand_id
+    </select>
+
+    <select id="selectSalesRecordByProvinceId" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT a.id,a.series_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+        FROM (SELECT id,series_name FROM car_series WHERE brand_id = #{brandId}) a
+        LEFT JOIN (SELECT id,price,series_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                    AND brand_id = #{brandId} AND province_id = #{provinceId}
+                  ) b ON b.series_id = a.id
+        GROUP BY a.id
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectSalesRecordGroupByBrandId"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+		SELECT a.id AS brand_id,a.brand_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+		FROM (SELECT id,brand_name FROM brand WHERE id = #{brandId} OR id IN
+		        (SELECT compete_id FROM brand_relevance_compete WHERE brand_id = #{brandId})) a
+        LEFT JOIN (SELECT id,price,brand_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)) b
+		ON b.brand_id = a.id
+		GROUP BY a.id
+		ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectSalesRecordGroupBySeriesId"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+		SELECT a.id AS series_id,a.series_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+		FROM (SELECT id,series_name FROM car_series WHERE id = #{seriesId} OR id IN
+		        (SELECT compete_id FROM series_relevance_compete WHERE series_id = #{seriesId})) a
+        LEFT JOIN (SELECT id,price,series_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)) b
+		ON b.series_id = a.id
+		GROUP BY a.id
+		ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectSeriesSalesRecordGroupBySeriesId"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT a.id AS series_id,a.series_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+        FROM (SELECT id,series_name FROM car_series WHERE brand_id = #{brandId}) a
+        LEFT JOIN (SELECT id,price,series_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                    AND brand_id = #{brandId}) b
+        ON b.series_id = a.id
+        GROUP BY a.id
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectModelSalesRecordGroupByModelId"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        SELECT a.id AS model_id,a.model_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+        FROM (SELECT id,model_name FROM car_model WHERE series_id = #{seriesId}) a
+        LEFT JOIN (SELECT id,price,model_id FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                    AND series_id = #{seriesId}) b
+        ON b.model_id = a.id
+        GROUP BY a.id
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectTrendByBrandId" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <trim suffixOverrides="UNION ALL">
+            <foreach collection="timeList" item="item">
+                SELECT #{item} AS time,brand_id,(SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name,
+                        COUNT(id) AS sales_num,IFNULL(ROUND(AVG(price),2),'0.00') AS avg_price
+                FROM sales_record
+                WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') = #{item} AND brand_id = #{brandId}
+                UNION ALL
+            </foreach>
+        </trim>
+    </select>
+
+    <select id="selectTrendBySeriesId" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <trim suffixOverrides="UNION ALL">
+            <foreach collection="timeList" item="item">
+                SELECT #{item} AS time,series_id,(SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name,
+                        COUNT(id) AS sales_num,IFNULL(ROUND(AVG(price),2),'0.00') AS avg_price
+                FROM sales_record
+                WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') = #{item} AND series_id = #{seriesId}
+                UNION ALL
+            </foreach>
+        </trim>
+    </select>
+
+    <select id="selectRegionDistribution"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <if test="brandId != null">
+            <if test='regionType == "region"'>
+                SELECT a.id AS region_id,a.region_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name,#{brandId} AS brand_id
+                FROM (SELECT id,region_name FROM region WHERE brand_id = #{brandId}) a
+                LEFT JOIN (SELECT id,region_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id = #{brandId}) b
+                ON b.region_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test='regionType == "province"'>
+                SELECT a.id AS province_id,a.area_name AS province_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name,#{brandId} AS brand_id
+                FROM (SELECT id,area_name FROM area WHERE area_type = 'province') a
+                LEFT JOIN (SELECT id,province_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id = #{brandId}) b
+                ON b.province_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test='regionType == "city"'>
+                SELECT a.id AS city_id,a.area_name AS city_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name,#{brandId} AS brand_id
+                FROM (SELECT id,area_name FROM area WHERE area_type = 'city') a
+                LEFT JOIN (SELECT id,city_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id = #{brandId}) b
+                ON b.city_id = a.id
+                GROUP BY a.id
+            </if>
+        </if>
+        <if test="seriesId != null">
+            <if test='regionType == "region"'>
+                SELECT a.id AS region_id,a.region_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name,#{seriesId} AS series_id
+                FROM (SELECT id,region_name FROM region WHERE brand_id = (SELECT brand_id FROM car_series WHERE id = #{seriesId})) a
+                LEFT JOIN (SELECT id,region_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id = #{seriesId}) b
+                ON b.region_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test='regionType == "province"'>
+                SELECT a.id AS province_id,a.area_name AS province_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name,#{seriesId} AS series_id
+                FROM (SELECT id,area_name FROM area WHERE area_type = 'province') a
+                LEFT JOIN (SELECT id,province_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id = #{seriesId}) b
+                ON b.province_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test='regionType == "city"'>
+                SELECT a.id AS city_id,a.area_name AS city_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name,#{seriesId} AS series_id
+                FROM (SELECT id,area_name FROM area WHERE area_type = 'city') a
+                LEFT JOIN (SELECT id,city_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id = #{seriesId}) b
+                ON b.city_id = a.id
+                GROUP BY a.id
+            </if>
+        </if>
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectCompeteRegionDistribution"
+            resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <if test="brandIdList != null and brandIdList.size > 0">
+            SELECT a.id AS brand_id,a.brand_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+            FROM (SELECT id,brand_name FROM brand WHERE id IN
+                    <foreach collection="brandIdList" item="item" open="(" close=")" separator=",">
+                        #{item}
+                    </foreach>
+                ) a
+            LEFT JOIN (SELECT id,brand_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id IN
+                            <foreach collection="brandIdList" item="item" open="(" close=")" separator=",">
+                                #{item}
+                            </foreach>
+                            <if test='regionType == "region"'>
+                                AND province_id IN (SELECT area_id FROM region_relevance_area WHERE region_id = #{paramterId})
+                            </if>
+                            <if test='regionType == "province"'>
+                                AND province_id = #{paramterId}
+                            </if>
+                            <if test='regionType == "city"'>
+                                AND city_id = #{paramterId}
+                            </if>
+                      ) b
+            ON b.brand_id = a.id
+            GROUP BY a.id
+        </if>
+        <if test="seriesIdList != null and seriesIdList.size > 0">
+            SELECT a.id AS series_id,a.series_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+            FROM (SELECT id,series_name FROM car_series WHERE id IN
+                    <foreach collection="seriesIdList" item="item" open="(" close=")" separator=",">
+                        #{item}
+                    </foreach>
+                ) a
+            LEFT JOIN (SELECT id,series_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id IN
+                            <foreach collection="seriesIdList" item="item" open="(" close=")" separator=",">
+                                #{item}
+                            </foreach>
+                            <if test='regionType == "region"'>
+                                AND province_id IN (SELECT area_id FROM region_relevance_area WHERE region_id = #{paramterId})
+                            </if>
+                            <if test='regionType == "province"'>
+                                AND province_id = #{paramterId}
+                            </if>
+                            <if test='regionType == "city"'>
+                                AND city_id = #{paramterId}
+                            </if>
+                        ) b
+            ON b.series_id = a.id
+            GROUP BY a.id
+        </if>
+    </select>
+
+    <select id="selectRegionDistributionInfo" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <if test="brandId != null">
+            <if test="regionId != null">
+                SELECT a.id AS province_id,a.area_name AS province_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name
+                FROM (SELECT id,area_name FROM area WHERE id IN (SELECT area_id FROM region_relevance_area WHERE region_id = #{regionId})) a
+                LEFT JOIN (SELECT id,province_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id = #{brandId}) b
+                ON b.province_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test="provinceId != null">
+                SELECT a.id AS city_id,a.area_name AS city_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name
+                FROM (SELECT id,area_name FROM area WHERE pid = #{provinceId}) a
+                LEFT JOIN (SELECT id,city_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND brand_id = #{brandId}) b
+                ON b.city_id = a.id
+                GROUP BY a.id
+            </if>
+        </if>
+        <if test="seriesId != null">
+            <if test="regionId != null">
+                SELECT a.id AS province_id,a.area_name AS province_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name
+                FROM (SELECT id,area_name FROM area WHERE id IN (SELECT area_id FROM region_relevance_area WHERE region_id = #{regionId})) a
+                LEFT JOIN (SELECT id,province_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id = #{seriesId}) b
+                ON b.province_id = a.id
+                GROUP BY a.id
+            </if>
+            <if test="provinceId != null">
+                SELECT a.id AS city_id,a.area_name AS city_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price,
+                (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name
+                FROM (SELECT id,area_name FROM area WHERE pid = #{provinceId}) a
+                LEFT JOIN (SELECT id,city_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                            AND series_id = #{seriesId}) b
+                ON b.city_id = a.id
+                GROUP BY a.id
+            </if>
+        </if>
+        ORDER BY COUNT(b.id) DESC
+    </select>
+
+    <select id="selectCompeteRegionDistributionInfo" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <if test="brandIdList != null and brandIdList.size > 0">
+            SELECT a.id AS brand_id,a.brand_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+            FROM (SELECT id,brand_name FROM brand WHERE id IN
+                    <foreach collection="brandIdList" item="item" open="(" close=")" separator=",">
+                        #{item}
+                    </foreach>
+                ) a
+            LEFT JOIN (SELECT id,brand_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                        AND brand_id IN
+                        <foreach collection="brandIdList" item="item" open="(" close=")" separator=",">
+                            #{item}
+                        </foreach>
+                        <if test="provinceId != null">
+                            AND province_id = #{provinceId}
+                        </if>
+                        <if test="cityId != null">
+                            AND city_id = #{cityId}
+                        </if>
+                    ) b
+            ON b.brand_id = a.id
+            GROUP BY a.id
+        </if>
+        <if test="seriesIdList != null and seriesIdList.size > 0">
+            SELECT a.id AS series_id,a.series_name,COUNT(b.id) AS sales_num,IFNULL(ROUND(AVG(b.price),2),'0.00') AS avg_price
+            FROM (SELECT id,series_name FROM car_series WHERE id IN
+                    <foreach collection="seriesIdList" item="item" open="(" close=")" separator=",">
+                        #{item}
+                    </foreach>
+                ) a
+            LEFT JOIN (SELECT id,series_id,price FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+                        AND series_id IN
+                        <foreach collection="seriesIdList" item="item" open="(" close=")" separator=",">
+                            #{item}
+                        </foreach>
+                        <if test="provinceId != null">
+                            AND province_id = #{provinceId}
+                        </if>
+                        <if test="cityId != null">
+                            AND city_id = #{cityId}
+                        </if>
+                    ) b
+            ON b.series_id = a.id
+            GROUP BY a.id
+        </if>
+    </select>
+
+    <select id="selectPercentList" resultType="org.atgpcm.oneStopApplet.domain.entity.SalesRecord">
+        <trim suffixOverrides="UNION ALL">
+            <foreach collection="priceList" item="item">
+                SELECT #{item} AS time,COUNT(id) AS sales_num,
+                <if test="brandId != null">
+                    (SELECT brand_name FROM brand WHERE id = #{brandId}) AS brand_name,brand_id
+                    FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10) AND brand_id = #{brandId}
+                </if>
+                <if test="seriesId != null">
+                    (SELECT series_name FROM car_series WHERE id = #{seriesId}) AS series_name,series_id
+                    FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10) AND series_id = #{seriesId}
+                </if>
+                <if test='item == "8万以下"'>
+                    AND price &lt; 8
+                </if>
+                <if test='item == "8万到12万"'>
+                    AND (price &gt;= 8 AND price &lt; 12)
+                </if>
+                <if test='item == "12万到18万"'>
+                    AND (price &gt;= 12 AND price &lt; 18)
+                </if>
+                <if test='item == "18万到25万"'>
+                    AND (price &gt;= 18 AND price &lt; 25)
+                </if>
+                <if test='item == "25万到40万"'>
+                    AND (price &gt;= 25 AND price &lt; 40)
+                </if>
+                <if test='item == "40万以上"'>
+                    AND price &gt; 40
+                </if>
+                UNION ALL
+            </foreach>
+        </trim>
+    </select>
+
+    <select id="getMaxSalesNumByBrand" resultType="java.lang.Integer">
+        SELECT COUNT(id) FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+        AND brand_id IN
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        GROUP BY brand_id
+        <if test='regionType == "region"'>
+            ,region_id
+        </if>
+        <if test='regionType == "province"'>
+            ,province_id
+        </if>
+        <if test='regionType == "city"'>
+            ,city_id
+        </if>
+        ORDER BY COUNT(id) DESC
+        LIMIT 1
+    </select>
+
+    <select id="getMaxSalesNumBySeries" resultType="java.lang.Integer">
+        SELECT COUNT(id) FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+        AND series_id IN
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        GROUP BY series_id
+        <if test='regionType == "region"'>
+            ,region_id
+        </if>
+        <if test='regionType == "province"'>
+            ,province_id
+        </if>
+        <if test='regionType == "city"'>
+            ,city_id
+        </if>
+        ORDER BY COUNT(id) DESC
+        LIMIT 1
+    </select>
+
+    <select id="getMaxPriceByBrand" resultType="java.math.BigDecimal">
+        SELECT IFNULL(ROUND(AVG(price),2),'0.00') FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+        AND brand_id IN
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        GROUP BY brand_id
+        <if test='regionType == "region"'>
+            ,region_id
+        </if>
+        <if test='regionType == "province"'>
+            ,province_id
+        </if>
+        <if test='regionType == "city"'>
+            ,city_id
+        </if>
+        ORDER BY IFNULL(ROUND(AVG(price),2),'0.00') DESC
+        LIMIT 1
+    </select>
+
+    <select id="getMaxPriceBySeries" resultType="java.math.BigDecimal">
+        SELECT IFNULL(ROUND(AVG(price),2),'0.00') FROM sales_record WHERE DATE_FORMAT(buy_time,'%Y-%m-%d') BETWEEN LEFT(#{time},10) AND RIGHT(#{time},10)
+        AND series_id IN
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        GROUP BY series_id
+        <if test='regionType == "region"'>
+            ,region_id
+        </if>
+        <if test='regionType == "province"'>
+            ,province_id
+        </if>
+        <if test='regionType == "city"'>
+            ,city_id
+        </if>
+        ORDER BY IFNULL(ROUND(AVG(price),2),'0.00') DESC
+        LIMIT 1
+    </select>
+
+</mapper>
